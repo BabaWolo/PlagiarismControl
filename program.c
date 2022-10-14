@@ -5,7 +5,6 @@ char your_text[] = "This is some text that we'll check for plagiarism";
 char controlled_text[] = "This is some text that we'll compare with sdfsf sdfsf sdfdsf";
 char your_text_arr[10];
 
-
 int main()
 {
     int text_size = strlen(your_text);
@@ -32,3 +31,4 @@ int main()
     
     return 0;
 }
+
