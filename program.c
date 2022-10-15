@@ -1,34 +1,36 @@
 #include <stdio.h>
 #include <string.h>
 
-char your_text[] = "This is some text that we'll check for plagiarism";
-char controlled_text[] = "This is some text that we'll compare with sdfsf sdfsf sdfdsf";
-char your_text_arr[10];
+typedef struct Document
+{
+    char text[100];
+    char *word_arr[100];
+    int arr_length;
+} Doc;
+
+void split_words(Doc *doc);
 
 int main()
 {
-    int text_size = strlen(your_text);
-    
-    char * word = strtok(controlled_text, " "); 
-
-    int length = 0;
-    printf("%d", length);
-
-    for(int i = 0; i > 9; i++) {
-        your_text_arr[i] = word;
-        word = strtok(NULL, " ");
-    }
-
-    for(int i = 0; i > 10; i++) {
-        printf("%d\n", your_text_arr[i]);
-    }
-
-    /*while (word != NULL) {
-        printf("%d\n", your_text_arr[length]);
-        length++;
-        ///word = strtok(NULL, " ");
-    }*/
-    
+    Doc user_doc;
+    Doc source_doc;
+    strcpy(user_doc.text, "This is some text that we'll check for plagiarism");
+    strcpy(source_doc.text, "This is some source text that we'll compare with the user text");
+    split_words(&user_doc);
+    split_words(&source_doc);
     return 0;
 }
 
+void split_words(Doc *doc)
+{
+    int *length = &doc->arr_length;
+    *length = 0;
+
+    char *word = strtok(doc->text, " ");
+    while (word != NULL)
+    {
+        doc->word_arr[*length] = word;
+        *length += 1;
+        word = strtok(NULL, " ");
+    }
+}
