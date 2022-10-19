@@ -60,7 +60,7 @@ void compare(Doc *user_doc, Doc source_doc)
             {
                 similar = 1;
 
-                // Checks similarities of following words. (The first unsimilar words gets skipped on the next run)
+                // Checks similarities of the following words
                 while (!strcmp(user_doc->words[1 + i++], source_doc.words[1 + j++]))
                     similar++;
 
