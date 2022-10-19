@@ -18,6 +18,7 @@ int main()
     strcpy(source_doc.text, "This is some source text that we'll compare with the user text");
     split_words(&user_doc);
     split_words(&source_doc);
+   // compare(charx, charx1, );
     return 0;
 }
 
@@ -33,4 +34,7 @@ void split_words(Doc *doc)
         *length += 1;
         word = strtok(NULL, " ");
     }
+}
+void compare(char x, char x1){
+
 }
