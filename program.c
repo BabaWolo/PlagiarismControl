@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 
 typedef struct Document
 {
@@ -22,7 +23,6 @@ int main()
     strcpy(source_doc.text, "This is some source text that we'll compare with the user text");
     split_words(&user_doc);
     split_words(&source_doc);
-   // compare(charx, charx1, );
     check_plagiarism();
     return 0;
 }
@@ -37,6 +37,7 @@ void check_plagiarism()
     //strcpy(source_doc.text, "This is some source text that we'll compare with the user text");
     split_words(&user_doc);
     split_words(&source_doc);
+    check_quotations();
     compare(&user_doc, source_doc);
 }
 
@@ -50,6 +51,7 @@ void split_words(Doc *doc)
     char *word = strtok(doc->text, " ");
     while (word != NULL)
     {
+        *word = tolower(*word);
         doc->words[*length] = word;
         *length += 1;
         word = strtok(NULL, " "); // <- Next word
