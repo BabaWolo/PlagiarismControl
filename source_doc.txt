@@ -1,0 +1,2 @@
+This is some source text that we'll compare with the user text
+hej med dig
