@@ -64,7 +64,8 @@ void split_words(Doc *doc)
 // Checks if two documents contains the exact same order of 3 or more words
 void compare(Doc *user_doc, Doc source_doc)
 {
-    int i, j, similar, count = 0, user_len = user_doc->words_length, source_len = source_doc.words_length;
+    int i, j, similar, strcmp_val = 0, count = 0;
+    int user_len = user_doc->words_length, source_len = source_doc.words_length;
 
     // Goes through each word in the user text and tries to detect it in the source text
     for (i = 0; i < user_len; i++)
@@ -82,15 +83,22 @@ void compare(Doc *user_doc, Doc source_doc)
                     !strcmp(user_doc->words[i + similar], source_doc.words[j + similar]))
                     similar++;
 
+                // Check if the word(s) is an extension to other similarities
+                if (similar <= 2 && count)
+                {
+                    strcmp_val = !strcmp(user_doc->words[user_doc->similarities[count]], source_doc.words[j - 1]);
+                    if (strcmp_val && similar == 1)
+                        strcmp_val = !strcmp(user_doc->words[user_doc->similarities[count - 1]], source_doc.words[j - 2]);
+                }
+
                 // If theres 3 or more identical words in a row then store the indexes of the words
-                if (similar >= 3)
+                if (similar >= 3 || strcmp_val)
                 {
                     count += count ? similar : similar - 1;
                     i += similar - 1;
 
                     while (--similar >= 0)
                         user_doc->similarities[count - similar] = i - similar;
-                    while (--similar > 0);
                     break;
                 }
             }
