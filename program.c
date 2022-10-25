@@ -85,9 +85,10 @@ void compare(Doc *user_doc, Doc source_doc)
                 // If theres 3 or more identical words in a row then store the indexes of the words
                 if (similar >= 3)
                 {
-                    count += similar;
-                    i += similar;
-                    do
+                    count += count ? similar : similar - 1;
+                    i += similar - 1;
+
+                    while (--similar >= 0)
                         user_doc->similarities[count - similar] = i - similar;
                     while (--similar > 0);
                     break;
@@ -98,7 +99,7 @@ void compare(Doc *user_doc, Doc source_doc)
     printf("\x1b[31m"
            "\nPLAGIARIZED TEXT: \n"
            "\x1b[0m");
-    for (i = 0; i < count; i++)
+    for (i = 0; i <= count; i++)
         printf("%s ", user_doc->words[user_doc->similarities[i]]);
     printf("\n\n");
 }
