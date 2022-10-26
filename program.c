@@ -77,10 +77,9 @@ void compare(Doc *user_doc, Doc source_doc)
                 similar = 1;
 
                 // Checks similarities of the following words
-                while (
-                    i + similar < user_len &&
-                    j + similar < source_len &&
-                    !strcmp(user_doc->words[i + similar], source_doc.words[j + similar]))
+                while (i + similar < user_len &&
+                       j + similar < source_len &&
+                       !strcmp(user_doc->words[i + similar], source_doc.words[j + similar]))
                     similar++;
 
                 // Check if the word(s) is an extension to other similarities
@@ -106,21 +105,50 @@ void compare(Doc *user_doc, Doc source_doc)
     }
     // Can't devide an integer with a higher integer without making it into a decimal
     float count_len = count ? count + 1 : count,
-          percent = (count_len / user_len) * 100;
+          percent = count_len / user_len * 100;
     char *color = percent > 15
                       ? "\x1b[31m" // <- Red
                   : percent > 5
                       ? "\033[0;33m"  // <- Yellow
                       : "\033[0;32m"; // <- Green
-    printf("%s"
+    printf("\n-------------------------"
+           "%s"
            "\nPLAGIARIZED TEXT (%.1f%%): \n"
-           "\x1b[0m",
+           "\x1b[0m"
+           "-------------------------\n",
            color,
            percent);
     if (count)
         for (i = 0; i <= count; i++)
             printf("%s ", user_doc->words[user_doc->similarities[i]]);
-    printf("\n\n");
+    printf("\n\n\n");
+
+    char show_doc;
+    printf("Show the plagiarised text in your document, (y)es or (n)o: ");
+    scanf(" %c", &show_doc);
+    if (show_doc == 'y')
+    {
+        printf("\n---------\n"
+               "%s"
+               "DOCUMENT:"
+               "\x1b[0m"
+               "\n---------\n",
+               color);
+        j = 0;
+        for (i = 0; i < user_len; i++)
+        {
+            if (i == user_doc->similarities[j])
+            {
+                printf("%s", color);
+                j++;
+            }
+
+            printf("%s "
+                   "\x1b[0m",
+                   user_doc->words[i]);
+        }
+    }
+    printf("\n\n\n");
 }
 
 int read_file(char text[], char *filename)
