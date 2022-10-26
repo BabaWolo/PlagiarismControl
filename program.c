@@ -104,11 +104,22 @@ void compare(Doc *user_doc, Doc source_doc)
             }
         }
     }
-    printf("\x1b[31m"
-           "\nPLAGIARIZED TEXT: \n"
-           "\x1b[0m");
-    for (i = 0; i <= count; i++)
-        printf("%s ", user_doc->words[user_doc->similarities[i]]);
+    // Can't devide an integer with a higher integer without making it into a decimal
+    float count_len = count ? count + 1 : count,
+          percent = (count_len / user_len) * 100;
+    char *color = percent > 15
+                      ? "\x1b[31m" // <- Red
+                  : percent > 5
+                      ? "\033[0;33m"  // <- Yellow
+                      : "\033[0;32m"; // <- Green
+    printf("%s"
+           "\nPLAGIARIZED TEXT (%.1f%%): \n"
+           "\x1b[0m",
+           color,
+           percent);
+    if (count)
+        for (i = 0; i <= count; i++)
+            printf("%s ", user_doc->words[user_doc->similarities[i]]);
     printf("\n\n");
 }
 
