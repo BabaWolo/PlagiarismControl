@@ -11,6 +11,7 @@ typedef struct Document
 } Doc;
 
 void split_words(Doc *doc);
+void check_quotations(char *word[], int *quatation_check, int *quatation_length);
 void compare(Doc *user_doc, Doc source_doc);
 void check_plagiarism();
 int read_file(char text[], char *filename);
@@ -19,11 +20,10 @@ int main()
 {
     Doc user_doc;
     Doc source_doc;
-    strcpy(user_doc.text, "This is some text that we'll check for plagiarism");
-    strcpy(source_doc.text, "This is some source text that we'll compare with the user text");
+    strcpy(user_doc.text, "d This \"is some text\" that we'll \"check for plagiarism\". this is also some text");
+    strcpy(source_doc.text, "This is some source  text that we'll compare with the user text");
     split_words(&user_doc);
     split_words(&source_doc);
-    check_plagiarism();
     return 0;
 }
 
@@ -37,7 +37,6 @@ void check_plagiarism()
     //strcpy(source_doc.text, "This is some source text that we'll compare with the user text");
     split_words(&user_doc);
     split_words(&source_doc);
-    check_quotations();
     compare(&user_doc, source_doc);
 }
 
@@ -47,14 +46,44 @@ void split_words(Doc *doc)
 {
     int *length = &doc->words_length;
     *length = 0;
+    int quatation_check = 0, quatation_length = 0;
 
     char *word = strtok(doc->text, " ");
     while (word != NULL)
-    {
+    {   
         *word = tolower(*word);
         doc->words[*length] = word;
         *length += 1;
         word = strtok(NULL, " "); // <- Next word
+
+        check_quotations(&word, &quatation_check, &quatation_length);
+    }
+}
+
+void check_quotations(char *word[], int *quatation_check, int *quatation_length){
+    if(strchr(*word, '"') != NULL)
+    {
+        *quatation_check += 1;
+    }
+    if (*quatation_check % 2 == 0)
+    {   
+        if (strchr(*word, '"') != NULL)
+        {
+            printf("\033[1;33m");
+            printf("%s\n", *word);
+            *quatation_length++;
+        } 
+        else 
+        {
+        printf("\033[0;37m");
+        printf("%s\n", *word);
+        }
+    } 
+    else if (*quatation_check % 2 != 0) 
+    {
+    printf("\033[1;33m");
+    printf("%s\n", *word);
+    *quatation_length++;
     }
 }
 
