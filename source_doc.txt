@@ -1,2 +1,1 @@
-This is some source text that we'll compare with the user text
-hej med dig
+This text is the short version. This text is the long version.

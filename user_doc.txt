@@ -1,2 +1,1 @@
-This is some text that we'll check for plagiarism
-hej med dig
+This "text" is the long version.
