@@ -25,8 +25,9 @@ int main()
 void remove_character(Doc *doc)
 {
     int i, j;
-    // copy characters, but only increment destination for "non-remove" characters
-    // strchr: Returns a pointer to the first occurrence of the character "str[dst]" in the string remove, or NULL if the character is not found
+    
+    // Checks if the a character in the document text is not in the alphabet or "" or . or null
+    // If true, the character equals NULL and everything else is pushed left
     for (i = 0, j; doc->text[i] != '\0'; i++){
         while (!(doc->text[i] >= 'a' && doc->text[i] <= 'z') && !(doc->text[i] >= 'A' && doc->text[i] <= 'Z') && 
                !(doc->text[i] == '"') && !(doc->text[i] == '.') && !(doc->text[i] != '\0'))
