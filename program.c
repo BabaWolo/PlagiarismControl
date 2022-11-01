@@ -10,7 +10,7 @@ typedef struct Document
     int similarities[100];
 } Doc;
 
-void remove_character(char *str, char *remove);
+void remove_character(Doc *doc);
 void split_words(Doc *doc);
 void check_quotations(char *word[], int *quatation_check, int *quatation_length);
 void compare(Doc *user_doc, Doc source_doc);
@@ -23,23 +23,35 @@ int main()
     return 0;
 }
 
-void remove_character(char *str, char *remove)
+void remove_character(Doc *doc)
 {
-    // copy characters, but only increment destination for "non-remove" characters
-    // strchr: Returns a pointer to the first occurrence of the character "str[dst]" in the string remove, or NULL if the character is not found
-    for (size_t src = 0, dst = 0; (str[dst] = str[src]) != '\0'; src++)
-        dst += (strchr(remove, str[dst]) == NULL);
+    int i, j;
+    
+    // Checks if the a character in the document text is not in the alphabet or "" or . or null
+    // If true, the character equals NULL and everything else is pushed left
+    for (i = 0, j; doc->text[i] != '\0'; i++){
+        while (!(doc->text[i] >= 'a' && doc->text[i] <= 'z') && !(doc->text[i] >= 'A' && doc->text[i] <= 'Z') && 
+               !(doc->text[i] == '"') && !(doc->text[i] == '.') && !(doc->text[i] != '\0'))
+        {
+            for (j=i; doc->text[j] != '\0'; j++)
+            {
+                doc->text[j] = doc->text[j+1];
+            }
+            doc->text[j] = '\0';
+        }
+        
+    }
 }
 
 void check_plagiarism()
 {
-    char symbols[] = "½§!@#£¤$%%&/{([)]=}?+`´|\\><;,:.-_¨^~'*";
+    
     Doc user_doc;
     Doc source_doc;
     read_file(user_doc.text, "user_doc.txt");
     read_file(source_doc.text, "source_doc.txt");
-    remove_character(user_doc.text, symbols);
-    remove_character(source_doc.text, symbols);
+    remove_character(&user_doc);
+    remove_character(&source_doc);
     split_words(&user_doc);
     split_words(&source_doc);
     compare(&user_doc, source_doc);
