@@ -14,7 +14,7 @@ void remove_character(Doc *doc);
 void split_words(Doc *doc);
 void compare(Doc *user_doc, Doc source_doc);
 void check_plagiarism();
-int read_file(char text[], char *filename);
+char *read_file(char text[], char *filename);
 
 int main()
 {
@@ -163,7 +163,7 @@ void compare(Doc *user_doc, Doc source_doc)
     printf("\n\n\n");
 }
 
-int read_file(char text[], char *filename)
+char *read_file(char text[], char *filename)
 {
 
     FILE *doc;
@@ -173,12 +173,16 @@ int read_file(char text[], char *filename)
     if (doc == NULL)
     {
         printf("Could not open file!");
-        return -1;
+        return NULL;
     }
 
     // Read the file content until either end of file or reached the maximum characters
-    while (!feof(doc))
-        fgets(text, 100, doc);
+    char line[100];
+    while(fgets(line, sizeof(line), doc)) {
+        line[strcspn(line, "\r\n")] = ' ';
+        strcat(text, line);
+    }
+
 
     fclose(doc);
 
