@@ -78,6 +78,8 @@ void split_words(Doc *doc)
 }
 
 void check_quotations(char *word[], int *quatation_check, int *quatation_length){
+    char quatation[100][20];
+    int pos = 0;
     if(strchr(*word, '"') != NULL)
     {
         *quatation_check += 1;
@@ -87,20 +89,20 @@ void check_quotations(char *word[], int *quatation_check, int *quatation_length)
         if (strchr(*word, '"') != NULL)
         {
             printf("\033[1;33m");
-            printf("%s\n", *word);
             *quatation_length++;
+            strcpy(quatation[pos], *word);
+            pos++;
         } 
-        else 
-        {
-        printf("\033[0;37m");
-        printf("%s\n", *word);
-        }
     } 
     else if (*quatation_check % 2 != 0) 
     {
     printf("\033[1;33m");
-    printf("%s\n", *word);
     *quatation_length++;
+    strcpy(quatation[pos], *word);
+        pos++;
+    }
+    for(int i = 0; i < pos; i++){
+        printf("%s ", quatation[i]);
     }
 }
 
