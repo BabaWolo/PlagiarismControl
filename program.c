@@ -39,10 +39,17 @@ void check_plagiarism()
 void remove_character(char *str){
     // Increment all "non-symbols"
     // strchr: Returns a pointer to the first occurrence of the character "str[dst]" in the string symbols, or NULL if the character is not found
+    // Vi starter med src og dst = 0 hvis dst = symbol -> dst = 0, hvis dst = !symbol -> dst = 1. 
+    // I et array eksempel [!, H, e, j], fordi src "0" er et symbol bliver dst += NULL, str[dst] "0" bliver sat på str[src] "0" altså [0, H, e, j] og src++ 
+    // vi kører for-løkken og fordi (str[dst] = str[src]), hvilket er (0 = 1), så bliver src incrementet altså [H, 0, e, j], og dst = 1 fordi det ikke er et symbol og src++
+    // str[dst] "1" = str[src] "2" = [H, e, 0, j], dst = 2, src++ 
+    // str[dst] "2" = str[src] "3" = [H, e, j, 0], dst = 3, src++ og til sidst rammer vi \0 og løkken afsluttes
     char symbols[] = "½§!@#£¤$%%&/{([)]=}?+`´|\\><;,:.-_¨^~'*";
-
+    
     for(size_t src = 0, dst = 0; (str[dst] = str[src]) != '\0'; src++)
-        dst += (strchr(symbols, str[dst]) == NULL);
+    
+        dst += (strchr(symbols, str[dst]) == NULL);   
+    
 }
 
 // Splits the given sentence into an array of words whenever it encounters a whitespace
