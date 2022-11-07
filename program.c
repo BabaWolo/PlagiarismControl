@@ -10,7 +10,7 @@ typedef struct Document
     int similarities[100];
 } Doc;
 
-void remove_character(Doc *doc);
+void remove_character(char *str);
 void split_words(Doc *doc);
 void check_quotations(char *word[], int *quatation_check, int *quatation_length);
 void compare(Doc *user_doc, Doc source_doc);
@@ -23,26 +23,6 @@ int main()
     return 0;
 }
 
-void remove_character(Doc *doc)
-{
-    int i, j;
-    
-    // Checks if the a character in the document text is not in the alphabet or "" or . or null
-    // If true, the character equals NULL and everything else is pushed left
-    for (i = 0, j; doc->text[i] != '\0'; i++){
-        while (!(doc->text[i] >= 'a' && doc->text[i] <= 'z') && !(doc->text[i] >= 'A' && doc->text[i] <= 'Z') && 
-               !(doc->text[i] == '"') && !(doc->text[i] == '.') && !(doc->text[i] != '\0'))
-        {
-            for (j=i; doc->text[j] != '\0'; j++)
-            {
-                doc->text[j] = doc->text[j+1];
-            }
-            doc->text[j] = '\0';
-        }
-        
-    }
-}
-
 void check_plagiarism()
 {
     
@@ -50,11 +30,27 @@ void check_plagiarism()
     Doc source_doc;
     read_file(user_doc.text, "user_doc.txt");
     read_file(source_doc.text, "source_doc.txt");
-    remove_character(&user_doc);
-    remove_character(&source_doc);
+    remove_character(user_doc.text);
+    remove_character(source_doc.text);
     split_words(&user_doc);
     split_words(&source_doc);
     compare(&user_doc, source_doc);
+}
+
+void remove_character(char *str){
+    // Increment all "non-symbols"
+    // strchr: Returns a pointer to the first occurrence of the character "str[dst]" in the string symbols, or NULL if the character is not found
+    // Vi starter med src og dst = 0 hvis dst = symbol -> dst = 0, hvis dst = !symbol -> dst = 1. 
+    // I et array eksempel [!, H, e, j], fordi src "0" er et symbol bliver dst += NULL, str[dst] "0" bliver sat på str[src] "0" altså [0, H, e, j] og src++ 
+    // vi kører for-løkken og fordi (str[dst] = str[src]), hvilket er (0 = 1), så bliver src incrementet altså [H, 0, e, j], og dst = 1 fordi det ikke er et symbol og src++
+    // str[dst] "1" = str[src] "2" = [H, e, 0, j], dst = 2, src++ 
+    // str[dst] "2" = str[src] "3" = [H, e, j, 0], dst = 3, src++ og til sidst rammer vi \0 og løkken afsluttes
+    char symbols[] = "½§!@#£¤$%%&/{([)]=}?+`´|\\><;,:.-_¨^~'*";
+    
+    for(size_t src = 0, dst = 0; (str[dst] = str[src]) != '\0'; src++)
+    
+        dst += (strchr(symbols, str[dst]) == NULL);   
+    
 }
 
 // Splits the given sentence into an array of words whenever it encounters a whitespace
