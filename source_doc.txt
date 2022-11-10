@@ -1,1 +1,1 @@
-This text is the short version. This text is the "long version".
+This text is the # # sh#ort version. Hello ! this text is the "long $ version", 
