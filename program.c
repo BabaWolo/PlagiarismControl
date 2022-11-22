@@ -1,29 +1,26 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 
 typedef struct Document
 {
-    char text[100];
-    char og_text[100]; // og = original
-    char *words[100];
-    char *og_words[100];
-    int words_len;
-    int og_words_len;
+    char text[100], og_text[100], *words[100], *og_words[100];
+    int words_len, og_words_len;
 } Doc;
 
-void remove_character(char *str);
-void split_words(Doc *doc);
-void split(char *arr[], char *text, int *length);
-void check_quotations(char *word[], int *quatation_check, int *quatation_len);
-void compare(Doc *user_doc, Doc source_doc);
 void check_plagiarism();
-int read_file(char text[], char *filename);
-void print_result(char *words[], int similar[], float percent, int user_len);
-void delete_dublicates(int arr[], int *length);
-void bubbleSort(int arr[], int n);
+void split_words(Doc *doc);
 void swap(int *high, int *low);
+void remove_character(char *str);
+void bubbleSort(int arr[], int n);
+int read_file(char text[], char *filename);
+void compare(Doc *user_doc, Doc source_doc);
+void delete_dublicates(int arr[], int *length);
+void split(char *arr[], char *text, int *length);
 void readd_symbols(Doc doc, int similar[], int sim_len);
+void print_result(char *words[], int similar[], float percent, int user_len);
+void check_quotations(char *word[], int *quatation_check, int *quatation_len);
 
 int main()
 {
