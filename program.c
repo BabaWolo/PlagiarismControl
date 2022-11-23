@@ -6,21 +6,22 @@
 typedef struct Document
 {
     char *text, *og_text, **words, **og_words;
-    int words_len, og_words_len;
+    int words_len, og_words_len, cited_words[200], cited_words_len;
 } Doc;
 
 void check_plagiarism();
 void split_words(Doc *doc);
+void find_quotations(Doc *doc);
 void free_struct_vars(Doc *doc);
 void remove_character(char *str);
+int is_quoted(Doc doc, int index);
 void read_file(Doc *doc, char *filename);
 void compare(Doc *user_doc, Doc source_doc);
 void delete_dublicates(int arr[], int *length);
 void split(char **arr[], char *text, int *length);
 int comparator(const void *num_1, const void *num_2);
 void readd_symbols(Doc doc, int similar[], int sim_len);
-void print_result(char *words[], int similar[], float percent, int user_len);
-void check_quotations(char *word[], int *quatation_check, int *quatation_len);
+void print_result(Doc doc, int similar[], float percent, int user_len);
 
 int main()
 {
@@ -36,6 +37,7 @@ void check_plagiarism()
     read_file(&source_doc, "source_doc.txt");
     split_words(&user_doc);
     split_words(&source_doc);
+    find_quotations(&user_doc);
     compare(&user_doc, source_doc);
     free_struct_vars(&user_doc);
     free_struct_vars(&source_doc);
@@ -95,34 +97,35 @@ void split(char **arr[], char *text, int *length)
     }
 }
 
-// void check_quotations(char *word[], int *quatation_check, int *quatation_len){
-//     char quatation[100][20];
-//     int pos = 0;
-//     if(strchr(*word, '"') != NULL)
-//     {
-//         *quatation_check += 1;
-//     }
-//     if (*quatation_check % 2 == 0)
-//     {
-//         if (strchr(*word, '"') != NULL)
-//         {
-//             printf("\033[1;33m");
-//             *quatation_len++;
-//             strcpy(quatation[pos], *word);
-//             pos++;
-//         }
-//     }
-//     else if (*quatation_check % 2 != 0)
-//     {
-//     printf("\033[1;33m");
-//     *quatation_len++;
-//     strcpy(quatation[pos], *word);
-//         pos++;
-//     }
-//     for(int i = 0; i < pos; i++){
-//         printf("%s ", quatation[i]);
-//     }
-// }
+void find_quotations(Doc *doc)
+{
+    int i, quotations = 0;
+    char *result;
+
+    for (i = 0; i < doc->og_words_len && quotations < 200; i++)
+    {
+        result = strchr(doc->og_words[i], '"');
+        // If the word contains only one quote then add the index
+        if (result != NULL && strchr(result + 1, '"') == NULL)
+            doc->cited_words[quotations++] = i;
+    }
+    doc->cited_words_len = quotations;
+}
+
+int is_quoted(Doc doc, int index)
+{
+    int min, max;
+    for (int i = 1; i < doc.cited_words_len; i += 2)
+    {
+        min = doc.cited_words[i - 1];
+        max = doc.cited_words[i];
+        if ((index - min) * (index - max) <= 0)
+            return 1;
+        else if (index < min)
+            break;
+    }
+    return 0;
+}
 
 // Checks if two documents contains the exact same order of 3 or more words
 void compare(Doc *user_doc, Doc source_doc)
@@ -175,7 +178,7 @@ void compare(Doc *user_doc, Doc source_doc)
         readd_symbols(*user_doc, similarities, count);
 
     // Print the entire document where the colored text is plagiarised
-    print_result(user_doc->og_words,
+    print_result(*user_doc,
                  similarities,
                  (float)count / user_len * 100, // <- Percent
                  user_doc->og_words_len);
@@ -191,7 +194,7 @@ void compare(Doc *user_doc, Doc source_doc)
         if (source_len != source_doc.og_words_len && count)
             readd_symbols(source_doc, similarities_src, count);
 
-        print_result(source_doc.og_words,
+        print_result(source_doc,
                      similarities_src,
                      (float)count / source_len * 100, // <- Percent
                      source_doc.og_words_len);
@@ -250,7 +253,7 @@ int comparator(const void *num_1, const void *num_2)
     return (*(int *)num_1 - *(int *)num_2); // Retreive value by type casting and dereferencing
 }
 
-void print_result(char *words[], int similar[], float percent, int user_len)
+void print_result(Doc doc, int similar[], float percent, int len)
 {
     int j = 0;
     static int run = 0;
@@ -259,23 +262,26 @@ void print_result(char *words[], int similar[], float percent, int user_len)
 
     if (run)
         strcpy(title, "SOURCE ");
-    run++;
 
     printf("\n--------------------------------\n%s%s"
            "PLAGIARISED TEXT (%.1f%%):\x1b[0m"
            "\n--------------------------------\n",
            color, title, percent);
 
-    for (int i = 0; i < user_len; i++)
+    for (int i = 0; i < len; i++)
     {
         if (i == similar[j])
         {
-            printf("%s", color);
+            if (!run && doc.cited_words_len > 1 && is_quoted(doc, i))
+                printf("\033[0;33m");
+            else
+                printf("%s", color);
             j++;
         }
-        printf("%s \x1b[0m", words[i]);
+        printf("%s \x1b[0m", doc.og_words[i]);
     }
     printf("\n\n\n");
+    run++;
 }
 
 void read_file(Doc *doc, char *filename)
