@@ -11,13 +11,12 @@ typedef struct Document
 
 void check_plagiarism();
 void split_words(Doc *doc);
-void swap(int *high, int *low);
 void remove_character(char *str);
-void bubbleSort(int arr[], int n);
 int read_file(char text[], char *filename);
 void compare(Doc *user_doc, Doc source_doc);
 void delete_dublicates(int arr[], int *length);
 void split(char *arr[], char *text, int *length);
+int comparator(const void *num_1, const void *num_2);
 void readd_symbols(Doc doc, int similar[], int sim_len);
 void print_result(char *words[], int similar[], float percent, int user_len);
 void check_quotations(char *word[], int *quatation_check, int *quatation_len);
@@ -170,7 +169,7 @@ void compare(Doc *user_doc, Doc source_doc)
     if (show_doc == 'y')
     {
         delete_dublicates(similarities_src, &count);
-        bubbleSort(similarities_src, count);
+        qsort(similarities_src, count, sizeof(int), comparator);
 
         if (source_len != source_doc.og_words_len && count)
             readd_symbols(source_doc, similarities_src, count);
@@ -228,22 +227,10 @@ void delete_dublicates(int arr[], int *length)
     }
 }
 
-// Sort the array from low to high values
-void bubbleSort(int arr[], int n)
+// Returns a value that indicates if num_1 is less, equal or higher than num_2
+int comparator(const void *num_1, const void *num_2)
 {
-    int i, j;
-    for (i = 0; i < n - 1; i++)
-        for (j = 0; j < n - i - 1; j++)
-            if (arr[j] > arr[j + 1])
-                swap(&arr[j], &arr[j + 1]);
-}
-
-// Swap the high and low value so the higher value gets a higher index
-void swap(int *high_val, int *low_val)
-{
-    int temp = *low_val;
-    *low_val = *high_val;
-    *high_val = temp;
+    return (*(int *)num_1 - *(int *)num_2); // Retreive value by type casting and dereferencing
 }
 
 void print_result(char *words[], int similar[], float percent, int user_len)
