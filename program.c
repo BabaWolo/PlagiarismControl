@@ -5,17 +5,18 @@
 
 typedef struct Document
 {
-    char text[100], og_text[100], *words[100], *og_words[100];
+    char *text, *og_text, **words, **og_words;
     int words_len, og_words_len;
 } Doc;
 
 void check_plagiarism();
 void split_words(Doc *doc);
+void free_struct_vars(Doc *doc);
 void remove_character(char *str);
-int read_file(char text[], char *filename);
+void read_file(Doc *doc, char *filename);
 void compare(Doc *user_doc, Doc source_doc);
 void delete_dublicates(int arr[], int *length);
-void split(char *arr[], char *text, int *length);
+void split(char **arr[], char *text, int *length);
 int comparator(const void *num_1, const void *num_2);
 void readd_symbols(Doc doc, int similar[], int sim_len);
 void print_result(char *words[], int similar[], float percent, int user_len);
@@ -31,11 +32,13 @@ void check_plagiarism()
 {
     Doc user_doc;
     Doc source_doc;
-    read_file(user_doc.text, "user_doc.txt");
-    read_file(source_doc.text, "source_doc.txt");
+    read_file(&user_doc, "user_doc.txt");
+    read_file(&source_doc, "source_doc.txt");
     split_words(&user_doc);
     split_words(&source_doc);
     compare(&user_doc, source_doc);
+    free_struct_vars(&user_doc);
+    free_struct_vars(&source_doc);
 }
 
 void remove_character(char *str)
@@ -60,20 +63,34 @@ void split_words(Doc *doc)
     // str token destroys the orignal string and breaks it into smaller strings and returns a pointer to them
     // There needs to be two different text variables since strtok returns the pointer to the modified string
     // A local scope text variable wouldn't suffice since it would be deleted after function run
-    strcpy(doc->og_text, doc->text);
-    split(doc->og_words, doc->og_text, &doc->og_words_len);
+    split(&doc->og_words, doc->og_text, &doc->og_words_len);
     remove_character(doc->text);
-    split(doc->words, doc->text, &doc->words_len);
+    split(&doc->words, doc->text, &doc->words_len);
 }
 
-void split(char *arr[], char *text, int *length)
+void split(char **arr[], char *text, int *length)
 {
     *length = 0;
+    int i = 0;
+    char *string = text;
+    size_t len;
+    // strspn doesn't destroy the original array which makes it ideal to get the amount of words
+    // The first time strspn meets a character that's both in string 1 and 2 it begins to count
+    // how many times string 2 characters appear in a row from that point and returns the value
+    while (*(string += strspn(string, " ")) != '\0') // Moves the length of the whitespaces
+    {
+        // strcspn returns the length of the start position to the first occurance of a character in string 2
+        len = strcspn(string, " ");
+        *length += 1;
+        string += len; // Moves the string pointer to the end of the word
+    }
+    *arr = (char **)malloc(sizeof(char *) * (*length));
+
     char *word = strtok(text, " ");
     while (word != NULL)
     {
-        arr[*length] = word;
-        *length += 1;
+        (*arr)[i] = word;
+        i++;
         word = strtok(NULL, " "); // <- Next word
     }
 }
@@ -261,24 +278,62 @@ void print_result(char *words[], int similar[], float percent, int user_len)
     printf("\n\n\n");
 }
 
-int read_file(char text[], char *filename)
+void read_file(Doc *doc, char *filename)
 {
-
-    FILE *doc;
+    FILE *file;
+    char c, prev_c;
+    int i = 0;
 
     // Opening file, set to read mode and checking if possible to open file
-    doc = fopen(filename, "r");
-    if (doc == NULL)
+    file = fopen(filename, "r");
+    if (file == NULL)
     {
         printf("Could not open file!");
-        return -1;
+        exit(0);
     }
 
-    // Read the file content until either end of file or reached the maximum characters
-    while (!feof(doc))
-        fgets(text, 100, doc);
+    // Move cursor to the end of the file, use ftell to give you the position (length) and move the cursor back again
+    fseek(file, 0, SEEK_END);
+    int len = ftell(file);
+    fseek(file, 0, SEEK_SET);
 
-    fclose(doc);
+    // Newline characters needs a space in front of them so words doesn't get merched together when removing symbols
+    // Therefore the length of the file needs to be incremented again each time we meet a new line character
+    while ((c = fgetc(file)) != EOF)
+        if (c == '\n' || c == '\r')
+            len++;
+    fseek(file, 0, SEEK_SET);
 
-    return 0;
+    // Allocate memory based on the length of the file and add 1 to make space for '\0' at the end
+    doc->text = (char *)malloc(sizeof(char) * (len + 1));
+    doc->og_text = (char *)malloc(sizeof(char) * (len + 1));
+
+    // Read one character at a time until it reaches the end of the file (EOF)
+    while ((c = fgetc(file)) != EOF)
+    {
+        // Support Windows OSs using CRLF by not seperating the newline and carriage return characters
+        if (c == '\n' && prev_c != '\r' || c == '\r')
+        {
+            doc->text[i] = ' ';
+            doc->og_text[i] = ' ';
+            i++;
+        }
+        doc->text[i] = c;
+        doc->og_text[i] = c;
+        i++;
+        prev_c = c;
+    }
+
+    doc->text[i] = '\0';
+    doc->og_text[i] = '\0';
+
+    fclose(file);
+}
+
+void free_struct_vars(Doc *doc)
+{
+    free(doc->text);
+    free(doc->og_text);
+    free(doc->words);
+    free(doc->og_words);
 }
