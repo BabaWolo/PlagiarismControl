@@ -5,7 +5,7 @@
 
 typedef struct Document
 {
-    char *text, *og_text, **words, **og_words;
+    char filename[200], *filenames[10], *text, *og_text, **words, **og_words;
     int words_len, og_words_len, cited_words[200], cited_words_len;
 } Doc;
 
@@ -21,6 +21,7 @@ void delete_dublicates(int arr[], int *length);
 void split(char **arr[], char *text, int *length);
 int comparator(const void *num_1, const void *num_2);
 void readd_symbols(Doc doc, int similar[], int sim_len);
+void get_file_names(char *user_file, char *source_files);
 void print_result(Doc doc, int similar[], float percent, int user_len);
 
 int main()
@@ -33,14 +34,33 @@ void check_plagiarism()
 {
     Doc user_doc;
     Doc source_doc;
-    read_file(&user_doc, "user_doc.txt");
-    read_file(&source_doc, "source_doc.txt");
+    get_file_names(user_doc.filename, source_doc.filename);
+    read_file(&user_doc, user_doc.filename);
+    char *file = strtok(source_doc.filename, " ");
+    while (file != NULL)
+    {
+        read_file(&source_doc, file);
+        file = strtok(NULL, " "); // <- Next word
+    }
     split_words(&user_doc);
     split_words(&source_doc);
     find_quotations(&user_doc);
     compare(&user_doc, source_doc);
     free_struct_vars(&user_doc);
     free_struct_vars(&source_doc);
+}
+
+void get_file_names(char *user_file, char *source_files)
+{
+    char temp;
+    printf("Input your filename: ");
+    scanf("%s", user_file);
+    scanf("%c", &temp); // clears buffer
+    printf("Input the source filenames (divide mulitple filenames with a space): ");
+    scanf("%[^\n]", source_files);
+    // In development you should uncomment the two lines below and comment the lines above so you don't need to give an input all the time. !REMEMBER! to revert it back when pushing the code to github
+    // strcpy(user_file, "user.txt");
+    // strcpy(source_files, "src_1.txt src_2.txt");
 }
 
 void remove_character(char *str)
@@ -256,7 +276,7 @@ int comparator(const void *num_1, const void *num_2)
 void print_result(Doc doc, int similar[], float percent, int len)
 {
     int j = 0;
-    static int run = 0;
+    static int run = 0, k = 1;
     char title[8] = " YOUR ";
     char *color = percent > 0 ? "\x1b[31m" : "\033[0;32m"; // <- Red or Green
 
@@ -268,6 +288,8 @@ void print_result(Doc doc, int similar[], float percent, int len)
            "\n--------------------------------\n",
            color, title, percent);
 
+    printf("\033[0;30m%s\x1b[0m\n", doc.filenames[0]);
+
     for (int i = 0; i < len; i++)
     {
         if (i == similar[j])
@@ -278,7 +300,10 @@ void print_result(Doc doc, int similar[], float percent, int len)
                 printf("%s", color);
             j++;
         }
-        printf("%s \x1b[0m", doc.og_words[i]);
+        if (doc.og_words[i][0] == '\a' && doc.filenames[k])
+            printf("\n\n\033[0;30m%s\x1b[0m\n", doc.filenames[k++]);
+        else
+            printf("%s \x1b[0m", doc.og_words[i]);
     }
     printf("\n\n\n");
     run++;
@@ -288,19 +313,20 @@ void read_file(Doc *doc, char *filename)
 {
     FILE *file;
     char c, prev_c;
-    int i = 0;
+    int len, prev_len, j;
+    static int run = 1, i = 0, k = 0;
 
     // Opening file, set to read mode and checking if possible to open file
     file = fopen(filename, "r");
     if (file == NULL)
     {
-        printf("Could not open file!");
+        printf("Could not open file: %s", filename);
         exit(0);
     }
 
     // Move cursor to the end of the file, use ftell to give you the position (length) and move the cursor back again
     fseek(file, 0, SEEK_END);
-    int len = ftell(file);
+    len = ftell(file);
     fseek(file, 0, SEEK_SET);
 
     // Newline characters needs a space in front of them so words doesn't get merched together when removing symbols
@@ -310,9 +336,28 @@ void read_file(Doc *doc, char *filename)
             len++;
     fseek(file, 0, SEEK_SET);
 
-    // Allocate memory based on the length of the file and add 1 to make space for '\0' at the end
-    doc->text = (char *)malloc(sizeof(char) * (len + 1));
-    doc->og_text = (char *)malloc(sizeof(char) * (len + 1));
+    if (run < 3)
+    {
+        // Allocate memory based on the length of the file and add 1 to make space for '\0' at the end
+        doc->text = (char *)malloc(sizeof(char) * (len + 1));
+        doc->og_text = (char *)malloc(sizeof(char) * (len + 1));
+        i = 0;
+    }
+    else
+    {
+        size_t size = sizeof(char) * (i + len + 3);
+        doc->text = (char *)realloc(doc->text, size);
+        doc->og_text = (char *)realloc(doc->og_text, size);
+        char *string = " \a "; // Add bell character to indicate where a new file starts
+        for (j = 0; j < 3; i++, j++)
+        {
+            doc->text[i] = string[j]; // Remove \0 with a space and add bell character
+            doc->og_text[i] = string[j];
+        }
+        k++;
+    }
+
+    doc->filenames[k] = filename;
 
     // Read one character at a time until it reaches the end of the file (EOF)
     while ((c = fgetc(file)) != EOF)
@@ -333,6 +378,7 @@ void read_file(Doc *doc, char *filename)
     doc->text[i] = '\0';
     doc->og_text[i] = '\0';
 
+    run++;
     fclose(file);
 }
 
