@@ -1,1 +1,2 @@
-This is text from src_2
+The Eiffel Tower can be 15 cm taller during the summer, due to thermal expansion meaning 
+the iron heats up, the particles gain kinetic energy and take up more space.
