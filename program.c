@@ -194,11 +194,11 @@ void compare(Doc *user_doc, Doc source_doc)
                     similar++;
 
                 // Check if the word(s) is an extension to other similarities
-                if (similar <= 2 && count && j - 1 >= 0)
+                if (similar <= 2 && count && j - 1 >= 0 && similarities[count - 1] == i - 1)
                 {
-                    strcmp_val = check_similarity(user_doc->words[similarities[count - 1]], source_doc.words[j - 1]);
+                    strcmp_val = check_similarity(user_doc.words[i - 1], source_doc.words[j - 1]);
                     if (strcmp_val && similar == 1 && j - 2 >= 0)
-                        strcmp_val = check_similarity(user_doc->words[similarities[count - 2]], source_doc.words[j - 2]);
+                        strcmp_val = check_similarity(user_doc.words[i - 2], source_doc.words[j - 2]);
                 }
 
                 // If theres 3 or more identical words in a row then store the indexes of the words
