@@ -29,6 +29,7 @@ void split(char **arr[], char *text, int *length);
 int comparator(const void *num_1, const void *num_2);
 void readd_symbols(Doc doc, int similar[], int sim_len);
 void get_file_names(char *user_file, char *source_files);
+int check_conjugation(char *word1, char *word2, char *plural_suffix);
 void print_result(Doc doc, int similar[], float percent, int user_len);
 int check_synonyms(char *word1, char *word2, const char *synonyms[][SYNONYM_COLS], int rows);
 
@@ -250,17 +251,21 @@ int check_similarity(char *word1, char *word2)
     int result = !strcmp(word1, word2);
     if (!result)
     {
+        char plural_suffix[3] = "s";
         int rows, size;
         if (language == 2)
         {
             rows = sizeof(dk_synonyms) / sizeof(dk_synonyms[0]);
             result = check_synonyms(word1, word2, dk_synonyms, rows);
+            strcpy(plural_suffix, "er");
         }
         else
         {
             rows = sizeof(en_synonyms) / sizeof(en_synonyms[0]);
             result = check_synonyms(word1, word2, en_synonyms, rows);
         }
+        if (!result)
+            result = check_conjugation(word1, word2, plural_suffix);
     }
     return result;
 }
@@ -284,6 +289,17 @@ int check_synonyms(char *word1, char *word2, const char *synonyms[][SYNONYM_COLS
             }
     return result;
 }
+
+int check_conjugation(char *word1, char *word2, char *plural_suffix)
+{ // clang-format off
+    char *word1_cpy = word1, *word2_cpy = word2;
+    int result = 0;
+    while (word1_cpy[0] == word2_cpy[0] && (++word1_cpy)[0] && (++word2_cpy)[0]);
+
+    if (!word1_cpy[0] || !word2_cpy[0])
+        result = !strcmp(word1_cpy, plural_suffix) || !strcmp(word2_cpy, plural_suffix);
+    return result;
+} // clang-format on
 
 // Change similarity values to reflect the right index in the unedited words array.
 void readd_symbols(Doc doc, int similar[], int sim_len)
