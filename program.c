@@ -1,57 +1,25 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-#define SYNONYM_COLS 5
+#include "program.h"
+#include "tests/AllTests.c"
 
-typedef struct Document
+int main(int argc, char *argv[])
 {
-    char filename[200], *filenames[10], *text, *og_text, **words, **og_words;
-    int words_len, og_words_len, cited_words[200], *similarities, cited_words_len, sim_len, percent;
-} Doc;
-
-static int language = 1;
-static const char *en_synonyms[][SYNONYM_COLS] = {{"this", "that", ""}, {"like", "alike", "comparable", "related", ""}, {"technically", "officially", ""}};
-static const char *dk_synonyms[][SYNONYM_COLS] = {{"men", "alligevel", "derfor", "dog", "endda"}, {"og", "plus", "samt", ""}};
-
-void flush_stdin();
-void check_plagiarism();
-void split_words(Doc *doc);
-void print_result(Doc doc);
-void readd_symbols(Doc doc);
-void find_quotations(Doc *doc);
-void free_struct_vars(Doc *doc);
-int is_quoted(Doc doc, int index);
-void read_file(Doc *doc, char *filename);
-void compare(Doc *user_doc, Doc *source_doc);
-void finalize_doc(Doc user_doc, Doc src_doc);
-int check_similarity(char *word1, char *word2);
-void delete_dublicates(int arr[], int *length);
-void remove_characters(char *str, char *letters);
-void split(char **arr[], char *text, int *length);
-int comparator(const void *num_1, const void *num_2);
-void get_file_configurations(char *user_file, char *source_files);
-int check_conjugation(char *word1, char *word2, char *plural_suffix);
-int check_synonyms(char *word1, char *word2, const char *synonyms[][SYNONYM_COLS], int rows);
-
-int main()
-{
-    check_plagiarism();
+    if (argc == 2 && !strcmp(argv[1], "--test"))
+    {
+        RunAllTests();
+    }
+    else
+        check_plagiarism();
     return 0;
 }
 
+// Run all the top functions that allows the user to check their documents for potential plagiarism
 void check_plagiarism()
 {
     Doc user_doc;
     Doc source_doc;
     get_file_configurations(user_doc.filename, source_doc.filename);
     read_file(&user_doc, user_doc.filename);
-    char *file = strtok(source_doc.filename, " ");
-    while (file != NULL)
-    {
-        read_file(&source_doc, file);
-        file = strtok(NULL, " "); // <- Next word
-    }
+    read_file(&source_doc, source_doc.filename);
     split_words(&user_doc);
     split_words(&source_doc);
     find_quotations(&user_doc);
@@ -61,6 +29,7 @@ void check_plagiarism()
     free_struct_vars(&source_doc);
 }
 
+// Get user input on the language and names of the files
 void get_file_configurations(char *user_file, char *source_files)
 {
     int i = 0, lang_len = 2, similar;
@@ -85,83 +54,87 @@ void flush_stdin()
     while ((c = fgetc(stdin)) != '\n' && c != EOF);
 } // clang-format on
 
-void read_file(Doc *doc, char *filename)
+// Read the contents of a given file and save the result in Doc
+void read_file(Doc *doc, char filenames[])
 {
     FILE *file;
-    char c, prev_c;
-    int j;
-    static int run = 1, i = 0, k = 0;
+    char c, prev_c, *filename;
+    int j, run = 1, i = 0;
 
-    // Opening file, set to read mode and checking if possible to open file
-    if ((file = fopen(filename, "r")) == NULL)
+    filename = strtok(filenames, " ");
+    while (filename != NULL)
     {
-        printf("Could not open file: %s", filename);
-        exit(0);
-    }
-
-    // Move cursor to the end of the file, use ftell to give you the position (length) and move the cursor back again
-    fseek(file, 0, SEEK_END);
-    size_t size = ftell(file);
-    fseek(file, 0, SEEK_SET);
-
-    // Newline characters needs a space in front of them so words doesn't get merched together when removing symbols
-    // Therefore the length of the file needs to be incremented again each time we meet a new line character
-    while ((c = fgetc(file)) != EOF)
-        if (c == '\n' || c == '\r')
-            size++;
-    fseek(file, 0, SEEK_SET);
-
-    if (run < 3)
-    {
-        // Allocate memory based on the length of the file and add 1 to make space for '\0' at the end
-        doc->text = (char *)malloc(size + 1);
-        doc->og_text = (char *)malloc(size + 1);
-        i = 0;
-    }
-    else
-    {
-        size += i + 3;
-        doc->text = (char *)realloc(doc->text, size);
-        doc->og_text = (char *)realloc(doc->og_text, size);
-        char *string = " \a "; // Add bell character to indicate where a new file starts
-        for (j = 0; j < 3; i++, j++)
+        // Opening file, set to read mode and checking if possible to open file
+        if ((file = fopen(filename, "r")) == NULL)
         {
-            doc->text[i] = string[j]; // Remove \0 with a space and add bell character
-            doc->og_text[i] = string[j];
+            printf("Could not open file: %s", filename);
+            exit(0);
         }
-        k++;
-    }
 
-    doc->filenames[k] = filename;
+        // Move cursor to the end of the file, use ftell to give you the position (length) and move the cursor back again
+        fseek(file, 0, SEEK_END);
+        size_t size = ftell(file);
+        fseek(file, 0, SEEK_SET);
 
-    // Read one character at a time until it reaches the end of the file (EOF)
-    while ((c = fgetc(file)) != EOF)
-    {
-        // Support Windows OSs using CRLF by not seperating the newline and carriage return characters
-        if ((c == '\n' && prev_c != '\r') || c == '\r')
+        // Newline characters needs a space in front of them so words doesn't get merched together when removing symbols
+        // Therefore the length of the file needs to be incremented again each time we meet a new line character
+        while ((c = fgetc(file)) != EOF)
+            if (c == '\n' || c == '\r')
+                size++;
+        fseek(file, 0, SEEK_SET);
+
+        if (run < 2)
         {
-            doc->text[i] = ' ';
-            doc->og_text[i] = ' ';
+            // Allocate memory based on the length of the file and add 1 to make space for '\0' at the end
+            doc->text = (char *)malloc(size + 1);
+            doc->og_text = (char *)malloc(size + 1);
+            i = 0;
+        }
+        else
+        {
+            size += i + 3;
+            doc->text = (char *)realloc(doc->text, size);
+            doc->og_text = (char *)realloc(doc->og_text, size);
+            char *string = " \a "; // Add bell character to indicate where a new file starts
+            for (j = 0; j < 3; i++, j++)
+            {
+                doc->text[i] = string[j]; // Remove \0 with a space and add bell character
+                doc->og_text[i] = string[j];
+            }
+        }
+
+        doc->filenames[run - 1] = filename;
+
+        // Read one character at a time until it reaches the end of the file (EOF)
+        while ((c = fgetc(file)) != EOF)
+        {
+            // Support Windows OSs using CRLF by not seperating the newline and carriage return characters
+            if ((c == '\n' && prev_c != '\r') || c == '\r')
+            {
+                doc->text[i] = ' ';
+                doc->og_text[i] = ' ';
+                i++;
+            }
+            doc->text[i] = c;
+            doc->og_text[i] = c;
             i++;
+            prev_c = c;
         }
-        doc->text[i] = c;
-        doc->og_text[i] = c;
-        i++;
-        prev_c = c;
+
+        doc->text[i] = '\0';
+        doc->og_text[i] = '\0';
+
+        run++;
+        filename = strtok(NULL, " "); // <- Next word
+        fclose(file);
     }
-
-    doc->text[i] = '\0';
-    doc->og_text[i] = '\0';
-
-    run++;
-    fclose(file);
 }
 
 // Splits the given sentence into an array of words whenever it encounters a whitespace
 // The words and length gets stored in the struct output paramater
 void split_words(Doc *doc)
 {
-    char keep_chars[40] = "0123456789abcdefghijklmnopqrstuvwxyz ";
+    char keep_chars[50] = "0123456789abcdefghijklmnopqrstuvwxyz ";
     char dk_letters[] = "æøå";
     if (language == 2)
         strcat(keep_chars, dk_letters);
@@ -290,6 +263,8 @@ void compare(Doc *user_doc, Doc *source_doc)
     }
     user_doc->sim_len = sim_len;
     source_doc->sim_len = sim_len;
+    delete_dublicates(source_doc->similarities, &source_doc->sim_len);
+    qsort(source_doc->similarities, source_doc->sim_len, sizeof(int), comparator);
 }
 
 int check_similarity(char *word1, char *word2)
@@ -303,7 +278,7 @@ int check_similarity(char *word1, char *word2)
         {
             rows = sizeof(dk_synonyms) / sizeof(dk_synonyms[0]);
             result = check_synonyms(word1, word2, dk_synonyms, rows);
-            strcpy(plural_suffix, "er");
+            strcpy(plural_suffix, "r");
         }
         else
         {
@@ -318,34 +293,39 @@ int check_similarity(char *word1, char *word2)
 
 int check_synonyms(char *word1, char *word2, const char *synonyms[][SYNONYM_COLS], int rows)
 {
-    int i, j = 0, result = 0;
+    int i, j = 0, result = 0, columns;
 
     for (i = 0; i < rows; i++)
-        for (j = 0; j < SYNONYM_COLS && en_synonyms[i][j]; j++)
-            if (!strcmp(en_synonyms[i][j], word1))
+        for (j = 0; j < SYNONYM_COLS && synonyms[i][j]; j++)
+            if (!strcmp(synonyms[i][j], word1))
             {
                 j = 0;
                 do
                 {
-                    result = !strcmp(en_synonyms[i][j], word2);
+                    result = !strcmp(synonyms[i][j], word2);
                     if (result)
                         return result;
-                } while (en_synonyms[i][++j]);
+                } while (j < SYNONYM_COLS && synonyms[i][++j]);
                 return result;
             }
     return result;
 }
 
 int check_conjugation(char *word1, char *word2, char *plural_suffix)
-{ // clang-format off
+{
     char *word1_cpy = word1, *word2_cpy = word2;
     int result = 0;
-    while (word1_cpy[0] == word2_cpy[0] && (++word1_cpy)[0] && (++word2_cpy)[0]);
+
+    while (word1_cpy[0] && word2_cpy[0] && word1_cpy[0] == word2_cpy[0])
+    {
+        word1_cpy++;
+        word2_cpy++;
+    }
 
     if (!word1_cpy[0] || !word2_cpy[0])
         result = !strcmp(word1_cpy, plural_suffix) || !strcmp(word2_cpy, plural_suffix);
     return result;
-} // clang-format on
+}
 
 void finalize_doc(Doc user_doc, Doc src_doc)
 {
@@ -357,8 +337,6 @@ void finalize_doc(Doc user_doc, Doc src_doc)
     scanf(" %c", &show_doc);
     if (show_doc == 'y')
     {
-        delete_dublicates(src_doc.similarities, &src_doc.sim_len);
-        qsort(src_doc.similarities, src_doc.sim_len, sizeof(int), comparator);
         readd_symbols(src_doc);
         print_result(src_doc);
     }
@@ -374,7 +352,7 @@ void readd_symbols(Doc doc)
         char edited_letter;
 
         // Loop through the edited and unedited words
-        for (int i = 0, j = 0; i < doc.og_words_len && j < doc.words_len && sim_i <= sim_len; i++, j++)
+        for (int i = 0, j = 0; i < doc.og_words_len && j < doc.words_len && sim_i < sim_len; i++, j++)
         {
             edited_letter = doc.words[j][0];
             // Check if the word is similar to the edited word by taking the first letter and checking if it's in the string
@@ -383,10 +361,8 @@ void readd_symbols(Doc doc)
 
             // If same then the rest of the similarity values is incremented each time the words are not similar
             if (doc.similarities[sim_i] == j && same_word)
-            {
-                doc.similarities[sim_i] += i - j;
-                sim_i++;
-            }
+                doc.similarities[sim_i++] += i - j;
+
             // If not the same then decrement the index value of j to check the same word on the next run
             else if (!same_word)
                 j--;
@@ -423,9 +399,9 @@ int comparator(const void *num_1, const void *num_2)
 // Prints the entire document where the colored text is potentially plagiarised
 void print_result(Doc doc)
 {
-    int j = 0;
+    int j = 0, k = 1;
     float percent = (float)doc.sim_len / doc.words_len * 100;
-    static int run = 0, k = 1;
+    static int run = 1;
     char title[8] = " YOUR ";
     char *color = percent > 0 ? "\x1b[31m" : "\033[0;32m"; // <- Red or Green
 
@@ -441,7 +417,8 @@ void print_result(Doc doc)
     {
         if (i == doc.similarities[j])
         {
-            if (!run && doc.cited_words_len > 1 && is_quoted(doc, i))
+            // Only color the cited words in user text
+            if (run % 2 && doc.cited_words_len > 1 && is_quoted(doc, i))
                 printf("\033[0;33m");
             else
                 printf("%s", color);
