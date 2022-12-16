@@ -4,38 +4,54 @@
 int main(int argc, char *argv[])
 {
     if (argc == 2 && !strcmp(argv[1], "--test"))
-    {
         RunAllTests();
-    }
     else
-        check_plagiarism();
+        check_plagiarism_via_terminal();
     return 0;
 }
 
 // Run all the top functions that allows the user to check their documents for potential plagiarism
-void check_plagiarism()
+void check_plagiarism_via_terminal()
 {
-    Doc user_doc;
-    Doc source_doc;
-    get_file_configurations(user_doc.filename, source_doc.filename);
-    read_file(&user_doc, user_doc.filename);
-    read_file(&source_doc, source_doc.filename);
-    split_words(&user_doc);
-    split_words(&source_doc);
-    find_quotations(&user_doc);
-    compare(&user_doc, &source_doc);
-    finalize_doc(user_doc, source_doc);
-    free_struct_vars(&user_doc);
-    free_struct_vars(&source_doc);
+    Doc user;
+    Doc src;
+    get_file_configurations(user.filename, src.filename);
+    read_file(&user, user.filename);
+    read_file(&src, src.filename);
+    split_words(&user);
+    split_words(&src);
+    find_quotations(&user);
+    src.cited_words_len = 0;
+    compare(&user, &src);
+    finalize_doc(user, src);
+    free_struct_vars(&user);
+    free_struct_vars(&src);
+}
+
+// Main API function: Run all the top functions that allows the user to check their documents for potential plagiarism
+void check_plagiarism(Doc *user, Doc *src, char user_filename[], char src_filename[], int language)
+{
+    g_language = language;
+    strcpy(user->filename, user_filename);
+    strcpy(src->filename, src_filename);
+    read_file(user, user_filename);
+    read_file(src, src_filename);
+    split_words(user);
+    split_words(src);
+    find_quotations(user);
+    src->cited_words_len = 0;
+    compare(user, src);
+    readd_symbols(*user);
+    readd_symbols(*src);
 }
 
 // Get user input on the language and names of the files
 void get_file_configurations(char *user_file, char *source_files)
 {
-    int i = 0, lang_len = 2, similar;
+    int i = 0, similar;
     printf("What language is your files written in? \033[0;30m[1]\x1b[0m English  \033[0;30m[2]\x1b[0m Danish: ");
-    if (!scanf("%d", &language) || lang_len - language < 0)
-        language = 1;
+    if (!scanf("%d", &g_language) || g_lang_len - g_language < 0)
+        g_language = English;
     flush_stdin();
     printf("Input your filename: ");
     scanf("%s", user_file);
@@ -59,12 +75,11 @@ void read_file(Doc *doc, char filenames[])
 {
     FILE *file;
     char c, prev_c, *filename;
-    int j, run = 1, i = 0;
+    int j, run = 1, i = 0, size;
 
     filename = strtok(filenames, " ");
     while (filename != NULL)
     {
-        // Opening file, set to read mode and checking if possible to open file
         if ((file = fopen(filename, "r")) == NULL)
         {
             printf("Could not open file: %s", filename);
@@ -73,120 +88,105 @@ void read_file(Doc *doc, char filenames[])
 
         // Move cursor to the end of the file, use ftell to give you the position (length) and move the cursor back again
         fseek(file, 0, SEEK_END);
-        size_t size = ftell(file);
+        size = ftell(file);
         fseek(file, 0, SEEK_SET);
 
         // Newline characters needs a space in front of them so words doesn't get merched together when removing symbols
-        // Therefore the length of the file needs to be incremented again each time we meet a new line character
         while ((c = fgetc(file)) != EOF)
-            if (c == '\n' || c == '\r')
+            if (c == '\n')
                 size++;
         fseek(file, 0, SEEK_SET);
 
         if (run < 2)
         {
-            // Allocate memory based on the length of the file and add 1 to make space for '\0' at the end
-            doc->text = (char *)malloc(size + 1);
-            doc->og_text = (char *)malloc(size + 1);
+            doc->text = (char *)malloc(size + 1); // Add 1 to make space for '\0'
             i = 0;
         }
         else
         {
-            size += i + 3;
+            size += i + 2;
             doc->text = (char *)realloc(doc->text, size);
-            doc->og_text = (char *)realloc(doc->og_text, size);
-            char *string = " \a "; // Add bell character to indicate where a new file starts
-            for (j = 0; j < 3; i++, j++)
-            {
+            char *string = " \a"; // Add bell character to indicate where a new file starts
+            for (j = 0; j < 2; i++, j++)
                 doc->text[i] = string[j]; // Remove \0 with a space and add bell character
-                doc->og_text[i] = string[j];
-            }
         }
-
-        doc->filenames[run - 1] = filename;
 
         // Read one character at a time until it reaches the end of the file (EOF)
         while ((c = fgetc(file)) != EOF)
         {
             // Support Windows OSs using CRLF by not seperating the newline and carriage return characters
-            if ((c == '\n' && prev_c != '\r') || c == '\r')
+            if ((c == '\n' || c == '\r') && (prev_c != '\r' && prev_c != '\n'))
             {
                 doc->text[i] = ' ';
-                doc->og_text[i] = ' ';
                 i++;
             }
             doc->text[i] = c;
-            doc->og_text[i] = c;
             i++;
             prev_c = c;
         }
-
         doc->text[i] = '\0';
-        doc->og_text[i] = '\0';
 
         run++;
+        doc->filenames[run - 1] = filename;
         filename = strtok(NULL, " "); // <- Next word
         fclose(file);
     }
+
+    doc->og_text = (char *)malloc(size + 1);
+    doc->token_og_text = (char *)malloc(size + 1);
+    strcpy(doc->og_text, doc->text);
+    strcpy(doc->token_og_text, doc->text);
 }
 
-// Splits the given sentence into an array of words whenever it encounters a whitespace
-// The words and length gets stored in the struct output paramater
+// Prepares and splits text into words
 void split_words(Doc *doc)
 {
-    char keep_chars[50] = "0123456789abcdefghijklmnopqrstuvwxyz ";
-    char dk_letters[] = "æøå";
-    if (language == 2)
-        strcat(keep_chars, dk_letters);
-
-    // str token destroys the orignal string and breaks it into smaller strings and returns a pointer to them
-    // There needs to be two different text variables since strtok returns the pointer to the modified string
-    // A local scope text variable wouldn't suffice since it would be deleted after function run
-    split(&doc->og_words, doc->og_text, &doc->og_words_len);
-    remove_characters(doc->text, keep_chars);
-    split(&doc->words, doc->text, &doc->words_len);
+    split(&doc->og_words, doc->token_og_text, &doc->og_words_len);
+    remove_characters(doc->text, g_language);
+    doc->token_text = (char *)malloc(strlen(doc->text));
+    strcpy(doc->token_text, doc->text);
+    split(&doc->words, doc->token_text, &doc->words_len);
     doc->similarities = (int *)malloc(sizeof(int) * doc->words_len);
 }
 
+// Splits the given sentence into an array of words whenever it encounters a whitespace
 void split(char **arr[], char *text, int *length)
 {
     int i = 0;
-    *length = 0;
     char *text_cpy = text;
-    // strspn doesn't destroy the original array which makes it ideal to get the amount of words
-    // The first time strspn meets a character that's both in string 1 and 2 it begins to count
-    // how many times string 2 characters appear in a row from that point and returns the value
-    while (*(text_cpy += strspn(text_cpy, " ")) != '\0') // Moves the length of the whitespaces
+    *length = 0;
+
+    // Count number of words without destroying the original array
+    while (*(text_cpy += strspn(text_cpy, " ")) != '\0') // Pointer = end of spacings
     {
-        // strcspn returns the length of the start position to the first occurance of a character in string 2
         *length += 1;
-        text_cpy += strcspn(text_cpy, " "); // Moves the string pointer to the end of the word
+        text_cpy += strcspn(text_cpy, " "); // Pointer = end of word
     }
     *arr = (char **)malloc(sizeof(char *) * (*length));
 
+    // Split words and insert into array
     char *word = strtok(text, " ");
     while (word != NULL)
     {
         (*arr)[i] = word;
         i++;
-        word = strtok(NULL, " "); // <- Next word
+        word = strtok(NULL, " ");
     }
 }
 
-void remove_characters(char *str, char *keep_chars)
+// Remove all characters except keep_chars from a string
+void remove_characters(char *str, int language)
 {
-    // Increment all "non-symbols"
-    // strchr: Returns a pointer to the first occurrence of the character "str[dst]" in the string symbols, or NULL if the character is not found
-    // Vi starter med src og dst = 0 hvis dst = symbol -> dst = 0, hvis dst = !symbol -> dst = 1.
-    // I et array eksempel [!, H, e, j], fordi src "0" er et symbol bliver dst += NULL, str[dst] "0" bliver sat på str[src] "0" altså [0, H, e, j] og src++
-    // vi kører for-løkken og fordi (str[dst] = str[src]), hvilket er (0 = 1), så bliver src incrementet altså [H, 0, e, j], og dst = 1 fordi det ikke er et symbol og src++
-    // str[dst] "1" = str[src] "2" = [H, e, 0, j], dst = 2, src++
-    // str[dst] "2" = str[src] "3" = [H, e, j, 0], dst = 3, src++ og til sidst rammer vi \0 og løkken afsluttes
+    char keep_chars[50] = "0123456789abcdefghijklmnopqrstuvwxyz ";
+    char dk_letters[] = "æøå", *text_cpy, *og_text_cpy;
+    if (language == 2)
+        strcat(keep_chars, dk_letters);
 
     for (size_t src = 0, dst = 0; (str[dst] = tolower(str[src])) != '\0'; src++)
         dst += (strchr(keep_chars, str[dst]) != NULL);
 }
 
+// Detect placement of words containing one quote
 void find_quotations(Doc *doc)
 {
     int i, quotations = 0;
@@ -195,13 +195,13 @@ void find_quotations(Doc *doc)
     for (i = 0; i < doc->og_words_len && quotations < 200; i++)
     {
         result = strchr(doc->og_words[i], '"');
-        // If the word contains only one quote then add the index
         if (result != NULL && strchr(result + 1, '"') == NULL)
             doc->cited_words[quotations++] = i;
     }
     doc->cited_words_len = quotations;
 }
 
+// Returns a bool value indicating if the given index ranges between two other indexes
 int is_quoted(Doc doc, int index)
 {
     int min, max;
@@ -218,32 +218,32 @@ int is_quoted(Doc doc, int index)
 }
 
 // Checks if two documents contains the exact same order of 3 or more words
-void compare(Doc *user_doc, Doc *source_doc)
+void compare(Doc *user, Doc *src)
 {
     int i, j, k, similar, strcmp_val = 0, sim_len = 0;
-    int user_len = user_doc->words_len, source_len = source_doc->words_len;
+    int user_len = user->words_len, source_len = src->words_len;
 
     // Goes through each word in the user text and tries to detect it in the source text
     for (i = 0; i < user_len; i++)
     {
         for (j = 0; j < source_len; j++)
         {
-            if (check_similarity(user_doc->words[i], source_doc->words[j]))
+            if (check_similarity(user->words[i], src->words[j]))
             {
                 similar = 1;
 
                 // Checks similarities of the following words
                 while (i + similar < user_len &&
                        j + similar < source_len &&
-                       check_similarity(user_doc->words[i + similar], source_doc->words[j + similar]))
+                       check_similarity(user->words[i + similar], src->words[j + similar]))
                     similar++;
 
                 // Check if the word(s) is an extension to other similarities
-                if (similar <= 2 && sim_len && j > 0 && user_doc->similarities[sim_len - 1] == i - 1)
+                if (similar <= 2 && sim_len && j > 0 && user->similarities[sim_len - 1] == i - 1)
                 {
-                    strcmp_val = check_similarity(user_doc->words[i - 1], source_doc->words[j - 1]);
+                    strcmp_val = check_similarity(user->words[i - 1], src->words[j - 1]);
                     if (strcmp_val && similar == 1 && j > 1)
-                        strcmp_val = check_similarity(user_doc->words[i - 2], source_doc->words[j - 2]);
+                        strcmp_val = check_similarity(user->words[i - 2], src->words[j - 2]);
                 }
 
                 // If theres 3 or more identical words in a row then store the indexes of the words
@@ -251,8 +251,8 @@ void compare(Doc *user_doc, Doc *source_doc)
                 {
                     for (k = 0; k < similar; k++)
                     {
-                        user_doc->similarities[sim_len + k] = i + k;
-                        source_doc->similarities[sim_len + k] = j + k;
+                        user->similarities[sim_len + k] = i + k;
+                        src->similarities[sim_len + k] = j + k;
                     }
                     i += similar - 1;
                     sim_len += similar;
@@ -261,12 +261,15 @@ void compare(Doc *user_doc, Doc *source_doc)
             }
         }
     }
-    user_doc->sim_len = sim_len;
-    source_doc->sim_len = sim_len;
-    delete_dublicates(source_doc->similarities, &source_doc->sim_len);
-    qsort(source_doc->similarities, source_doc->sim_len, sizeof(int), comparator);
+    user->sim_len = sim_len;
+    src->sim_len = sim_len;
+    delete_dublicates(src->similarities, &src->sim_len);
+    qsort(src->similarities, src->sim_len, sizeof(int), comparator);
+    user->percent = (float)user->sim_len / user->words_len * 100;
+    src->percent = (float)src->sim_len / src->words_len * 100;
 }
 
+// Check if words are identical, synonyms and conjugations of eachother
 int check_similarity(char *word1, char *word2)
 {
     int result = !strcmp(word1, word2);
@@ -274,16 +277,16 @@ int check_similarity(char *word1, char *word2)
     {
         char plural_suffix[3] = "s";
         int rows;
-        if (language == 2)
+        if (g_language == 2)
         {
-            rows = sizeof(dk_synonyms) / sizeof(dk_synonyms[0]);
-            result = check_synonyms(word1, word2, dk_synonyms, rows);
+            rows = sizeof(g_dk_synonyms) / sizeof(g_dk_synonyms[0]);
+            result = check_synonyms(word1, word2, g_dk_synonyms, rows);
             strcpy(plural_suffix, "r");
         }
         else
         {
-            rows = sizeof(en_synonyms) / sizeof(en_synonyms[0]);
-            result = check_synonyms(word1, word2, en_synonyms, rows);
+            rows = sizeof(g_en_synonyms) / sizeof(g_en_synonyms[0]);
+            result = check_synonyms(word1, word2, g_en_synonyms, rows);
         }
         if (!result)
             result = check_conjugation(word1, word2, plural_suffix);
@@ -291,6 +294,7 @@ int check_similarity(char *word1, char *word2)
     return result;
 }
 
+// Check if two words are eachothers synonyms in their respective language
 int check_synonyms(char *word1, char *word2, const char *synonyms[][SYNONYM_COLS], int rows)
 {
     int i, j = 0, result = 0, columns;
@@ -311,6 +315,7 @@ int check_synonyms(char *word1, char *word2, const char *synonyms[][SYNONYM_COLS
     return result;
 }
 
+// Check if two words are the same with different conjugations
 int check_conjugation(char *word1, char *word2, char *plural_suffix)
 {
     char *word1_cpy = word1, *word2_cpy = word2;
@@ -327,18 +332,19 @@ int check_conjugation(char *word1, char *word2, char *plural_suffix)
     return result;
 }
 
-void finalize_doc(Doc user_doc, Doc src_doc)
+// Prepares the document for printing
+void finalize_doc(Doc user, Doc src)
 {
     char show_doc;
-    readd_symbols(user_doc);
-    print_result(user_doc);
+    readd_symbols(user);
+    print_result(user, 0);
 
     printf("Show the plagiarised text in the source document?  \033[0;32m[y] Yes  \x1b[31m[n] No: \x1b[0m");
     scanf(" %c", &show_doc);
     if (show_doc == 'y')
     {
-        readd_symbols(src_doc);
-        print_result(src_doc);
+        readd_symbols(src);
+        print_result(src, 1);
     }
 }
 
@@ -355,7 +361,6 @@ void readd_symbols(Doc doc)
         for (int i = 0, j = 0; i < doc.og_words_len && j < doc.words_len && sim_i < sim_len; i++, j++)
         {
             edited_letter = doc.words[j][0];
-            // Check if the word is similar to the edited word by taking the first letter and checking if it's in the string
             same_word = strchr(doc.og_words[i], edited_letter) != NULL ||
                         strchr(doc.og_words[i], toupper(edited_letter)) != NULL;
 
@@ -396,43 +401,39 @@ int comparator(const void *num_1, const void *num_2)
     return (*(int *)num_1 - *(int *)num_2); // Retreive value by type casting and dereferencing
 }
 
-// Prints the entire document where the colored text is potentially plagiarised
-void print_result(Doc doc)
+// Prints the entire document where potentially plagiarised text is colored
+void print_result(Doc doc, int is_src_doc)
 {
-    int j = 0, k = 1;
-    float percent = (float)doc.sim_len / doc.words_len * 100;
-    static int run = 1;
-    char title[8] = " YOUR ";
-    char *color = percent > 0 ? "\x1b[31m" : "\033[0;32m"; // <- Red or Green
+    int i, j = 0, k = 1;
+    char title[8] = " YOUR ", *color = doc.percent > 0 ? "\x1b[31m" : "\033[0;32m"; // <- Red or Green
 
-    if (run)
+    if (is_src_doc)
         strcpy(title, "SOURCE ");
 
-    printf("\n\033[0;30m--------------------------------\n%s%s"
-           "PLAGIARISED TEXT (%.1f%%):"
-           "\n\033[0;30m--------------------------------\n%s\x1b[0m\n",
-           color, title, percent, doc.filenames[0]);
+    printf("\n\033[0;30m--------------------------------------------\n%s%s"
+           "POTENTIALLY PLAGIARISED TEXT (%.1f%%):"
+           "\n\033[0;30m--------------------------------------------\n%s\x1b[0m\n",
+           color, title, doc.percent, doc.filenames[0]);
 
-    for (int i = 0; i < doc.og_words_len; i++)
+    for (i = 0; i < doc.og_words_len; i++)
     {
-        if (i == doc.similarities[j])
+        if (doc.og_words[i][0] == '\a' && doc.filenames[k])
+            printf("\n\n\033[0;30m%s\x1b[0m\n", doc.filenames[k++]);
+
+        if (doc.sim_len && i == doc.similarities[j])
         {
-            // Only color the cited words in user text
-            if (run % 2 && doc.cited_words_len > 1 && is_quoted(doc, i))
+            if (doc.cited_words_len > 1 && is_quoted(doc, i))
                 printf("\033[0;33m");
             else
                 printf("%s", color);
             j++;
         }
-        if (doc.og_words[i][0] == '\a' && doc.filenames[k])
-            printf("\n\n\033[0;30m%s\x1b[0m\n", doc.filenames[k++]);
-        else
-            printf("%s \x1b[0m", doc.og_words[i]);
+        printf("%s \x1b[0m", doc.og_words[i]);
     }
     printf("\n\n\n");
-    run++;
 }
 
+// Free all the dynamically allocated struct variables
 void free_struct_vars(Doc *doc)
 {
     free(doc->text);
@@ -440,4 +441,6 @@ void free_struct_vars(Doc *doc)
     free(doc->words);
     free(doc->og_words);
     free(doc->similarities);
+    free(doc->token_og_text);
+    free(doc->token_text);
 }

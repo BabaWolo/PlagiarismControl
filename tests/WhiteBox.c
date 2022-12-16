@@ -8,6 +8,7 @@ void FreeTestStructVars(Doc *doc, char *vars)
     {
         free(doc->text);
         free(doc->og_text);
+        free(doc->token_og_text);
     }
     else if (!strcmp(vars, "str_int_arr"))
     {
@@ -22,22 +23,12 @@ void FreeTestStructVars(Doc *doc, char *vars)
     }
 }
 
-void TestKeepENChars(CuTest *tc)
+void TestRemoveChars(CuTest *tc)
 {
-    char actual[] = "» #Helloø? Wo()rld !";
-    char *expected = " hello world ";
+    char actual[] = "» #Hellø? W0-rld !";
+    char *expected = " hellø w0rld ";
 
-    remove_characters(actual, "0123456789abcdefghijklmnopqrstuvwxyz ");
-
-    CuAssertStrEquals(tc, expected, actual);
-}
-
-void TestKeepDKChars(CuTest *tc)
-{
-    char actual[] = "» #Hellø? Wørld !";
-    char *expected = " hellø wørld ";
-
-    remove_characters(actual, "0123456789abcdefghijklmnopqrstuvwxyzæøå ");
+    remove_characters(actual, Danish);
 
     CuAssertStrEquals(tc, expected, actual);
 }
@@ -59,7 +50,7 @@ void TestSplitWords(CuTest *tc)
 void TestFindQuotations(CuTest *tc)
 {
     Doc doc;
-    char *input[] = {"This", "is", "\"some", "quoted", "text\""};
+    char *input[] = {"This", "\"is\"", "\"some", "quoted", "text\""};
     int expected_len = 2, expected_arr[] = {2, 4}, inp_len = 5;
     doc.og_words_len = inp_len;
     doc.og_words = (char **)malloc(sizeof(char *) * inp_len);
@@ -70,7 +61,6 @@ void TestFindQuotations(CuTest *tc)
 
     CuAssertIntEquals(tc, expected_len, doc.cited_words_len);
     CuAssertTrue(tc, !memcmp(expected_arr, doc.cited_words, sizeof(expected_arr)));
-
     free(doc.og_words);
 }
 
@@ -94,7 +84,7 @@ void TestIsQuoted(CuTest *tc)
 void TestReadFile(CuTest *tc)
 {
     Doc doc;
-    char *expected = "This is TestDoc.txt \nThis is TestDoc.txt \a This is TestDoc2.txt \nThis is TestDoc2.txt";
+    char *expected = "This is TestDoc.txt \nThis is TestDoc.txt \aThis is TestDoc2.txt \nThis is TestDoc2.txt";
     strcpy(doc.filename, "tests/TestDoc.txt tests/TestDoc2.txt");
 
     read_file(&doc, doc.filename);
@@ -103,12 +93,12 @@ void TestReadFile(CuTest *tc)
     FreeTestStructVars(&doc, STR_VARS);
 }
 
-void TestRead1000Lines(CuTest *tc)
+void TestRead200Lines(CuTest *tc)
 {
     Doc doc;
-    char line[] = "This document contains exactly 1000 lines consisting of 10 words \n";
-    int expected_text_len = strlen(line) * 1000 - 2;
-    strcpy(doc.filename, "tests/Test1000Lines.txt");
+    char line[] = "This text consists of exactly 200 lines containing 10 words ? \n";
+    int expected_text_len = strlen(line) * 200 - 2;
+    strcpy(doc.filename, "tests/Test200Lines.txt");
 
     read_file(&doc, doc.filename);
 
@@ -119,11 +109,12 @@ void TestRead1000Lines(CuTest *tc)
 void TestReaddSymbols(CuTest *tc)
 {
     Doc doc;
-    int expected[] = {1, 4, 6, 8};
-    char *og_words[] = {"?", "!This!", "?", "?", "Is", "?", "t«h»e", "?", "WORDS!", "?"};
-    char *words[] = {"this", "is", "the", "words"};
-    doc.og_words_len = 10;
-    doc.words_len = 4;
+    char *og_words[] = {"?", "!This!", "?", "?", "Is", "?", "t«h»e", "?", "WORDS!", "?", "\"Indeed\""};
+    char *words[] = {"this", "is", "the", "words", "indeed"};
+    int input[] = {0, 2, 3, 4};
+    int expected[] = {1, 6, 8, 10};
+    doc.og_words_len = 11;
+    doc.words_len = 5;
     doc.sim_len = 4;
     doc.og_words = (char **)malloc(sizeof(char *) * doc.og_words_len);
     doc.words = (char **)malloc(sizeof(char *) * doc.words_len);
@@ -134,7 +125,8 @@ void TestReaddSymbols(CuTest *tc)
         if (i < doc.words_len)
         {
             doc.words[i] = words[i];
-            doc.similarities[i] = i;
+            if (i < doc.sim_len)
+                doc.similarities[i] = input[i];
         }
     }
 
@@ -146,7 +138,7 @@ void TestReaddSymbols(CuTest *tc)
 
 void TestCheckDKSynonyms(CuTest *tc)
 {
-    language = 2;
+    g_language = 2;
     char *word1 = "men";
     char *word2 = "endda";
     CuAssertTrue(tc, check_similarity(word1, word2));
@@ -162,7 +154,7 @@ void TestCheckDKSynonyms(CuTest *tc)
 
 void TestCheckENSynonyms(CuTest *tc)
 {
-    language = 1;
+    g_language = 1;
     char *word1 = "officially";
     char *word2 = "technically";
     CuAssertTrue(tc, check_similarity(word1, word2));
@@ -178,7 +170,7 @@ void TestCheckENSynonyms(CuTest *tc)
 
 void TestCheckDKConjugation(CuTest *tc)
 {
-    language = 2;
+    g_language = 2;
     char *word1 = "løve";
     char *word2 = "løver";
     CuAssertTrue(tc, check_similarity(word1, word2));
@@ -191,7 +183,7 @@ void TestCheckDKConjugation(CuTest *tc)
 
 void TestCheckENConjugation(CuTest *tc)
 {
-    language = 1;
+    g_language = 1;
     char *word1 = "make";
     char *word2 = "makes";
     CuAssertTrue(tc, check_similarity(word1, word2));
@@ -225,10 +217,10 @@ void TestQsort(CuTest *tc)
 void TestCompare(CuTest *tc)
 {
     Doc user, src;
-    char user_input[] = "this is the second version this is the first versions";
-    char src_input[] = "this is the first version and that is the second version";
-    int user_expected[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-    int src_expected[] = {0, 1, 2, 3, 4, 9, 10};
+    char user_input[] = "this is version two this is versions one";
+    char src_input[] = "this is version one and that is version two";
+    int user_expected[] = {0, 1, 2, 3, 4, 5, 6, 7};
+    int src_expected[] = {0, 1, 2, 3, 8};
     split(&user.words, user_input, &user.words_len);
     split(&src.words, src_input, &src.words_len);
     user.similarities = (int *)malloc(sizeof(int) * user.words_len);
@@ -245,13 +237,12 @@ void TestCompare(CuTest *tc)
 CuSuite *WhiteBoxGetSuite()
 {
     CuSuite *suite = CuSuiteNew();
-    SUITE_ADD_TEST(suite, TestKeepENChars);
-    SUITE_ADD_TEST(suite, TestKeepDKChars);
+    SUITE_ADD_TEST(suite, TestRemoveChars);
     SUITE_ADD_TEST(suite, TestSplitWords);
     SUITE_ADD_TEST(suite, TestFindQuotations);
     SUITE_ADD_TEST(suite, TestIsQuoted);
     SUITE_ADD_TEST(suite, TestReadFile);
-    SUITE_ADD_TEST(suite, TestRead1000Lines);
+    SUITE_ADD_TEST(suite, TestRead200Lines);
     SUITE_ADD_TEST(suite, TestReaddSymbols);
     SUITE_ADD_TEST(suite, TestCheckDKSynonyms);
     SUITE_ADD_TEST(suite, TestCheckDKConjugation);

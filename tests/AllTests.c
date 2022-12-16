@@ -1,9 +1,9 @@
 #include <stdio.h>
+#include <time.h>
 #include "CuTest.c"
 #include "../program.h"
 #include "WhiteBox.c"
-
-CuSuite *WhiteBoxGetSuite();
+#include "BlackBox.c"
 
 void RunAllTests(void)
 {
@@ -11,6 +11,7 @@ void RunAllTests(void)
     CuSuite *suite = CuSuiteNew();
 
     CuSuiteAddSuite(suite, WhiteBoxGetSuite());
+    CuSuiteAddSuite(suite, BlackBoxGetSuite());
 
     CuSuiteRun(suite);
     CuSuiteSummary(suite, output);
