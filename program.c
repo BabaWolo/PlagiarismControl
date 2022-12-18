@@ -51,7 +51,10 @@ void get_file_configurations(char *user_file, char *source_files)
     int i = 0, similar;
     printf("What language is your files written in? \033[0;30m[1]\x1b[0m English  \033[0;30m[2]\x1b[0m Danish: ");
     if (!scanf("%d", &g_language) || g_lang_len - g_language < 0)
+    {
         g_language = English;
+        printf("Program defaulted to english\n");
+    }
     flush_stdin();
     printf("Input your filename: ");
     scanf("%s", user_file);
@@ -221,12 +224,12 @@ int is_quoted(Doc doc, int index)
 void compare(Doc *user, Doc *src)
 {
     int i, j, k, similar, strcmp_val = 0, sim_len = 0;
-    int user_len = user->words_len, source_len = src->words_len;
+    int user_len = user->words_len, src_len = src->words_len;
 
     // Goes through each word in the user text and tries to detect it in the source text
     for (i = 0; i < user_len; i++)
     {
-        for (j = 0; j < source_len; j++)
+        for (j = 0; j < src_len; j++)
         {
             if (check_similarity(user->words[i], src->words[j]))
             {
@@ -234,7 +237,7 @@ void compare(Doc *user, Doc *src)
 
                 // Checks similarities of the following words
                 while (i + similar < user_len &&
-                       j + similar < source_len &&
+                       j + similar < src_len &&
                        check_similarity(user->words[i + similar], src->words[j + similar]))
                     similar++;
 
@@ -277,7 +280,7 @@ int check_similarity(char *word1, char *word2)
     {
         char plural_suffix[3] = "s";
         int rows;
-        if (g_language == 2)
+        if (g_language == Danish)
         {
             rows = sizeof(g_dk_synonyms) / sizeof(g_dk_synonyms[0]);
             result = check_synonyms(word1, word2, g_dk_synonyms, rows);

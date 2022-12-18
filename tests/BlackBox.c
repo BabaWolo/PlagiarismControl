@@ -43,7 +43,7 @@ void TestTimeComplexity(CuTest *tc)
     check_plagiarism(&user, &src, user_filename, src_filenames, English);
     end_t = clock();
     seconds = (double)(end_t - start_t) / CLOCKS_PER_SEC;
-
+    printf("seconds: %f\n", seconds);
     CuAssertTrue(tc, seconds < .5);
     free_struct_vars(&user);
     free_struct_vars(&src);
