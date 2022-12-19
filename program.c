@@ -342,7 +342,7 @@ void finalize_doc(Doc user, Doc src)
     readd_symbols(user);
     print_result(user, 0);
 
-    printf("Show the plagiarised text in the source document?  \033[0;32m[y] Yes  \x1b[31m[n] No: \x1b[0m");
+    printf("Show the potentially plagiarised text in the source document?  \033[0;32m[y] Yes  \x1b[31m[n] No: \x1b[0m");
     scanf(" %c", &show_doc);
     if (show_doc == 'y')
     {
