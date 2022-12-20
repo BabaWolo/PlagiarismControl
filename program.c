@@ -129,10 +129,10 @@ void read_file(Doc *doc, char filenames[])
         }
         doc->text[i] = '\0';
 
-        run++;
         doc->filenames[run - 1] = filename;
-        filename = strtok(NULL, " "); // <- Next word
+        filename = strtok(NULL, " ");
         fclose(file);
+        run++;
     }
 
     doc->og_text = (char *)malloc(size + 1);
